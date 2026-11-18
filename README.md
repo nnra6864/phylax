@@ -6,28 +6,37 @@ phylax (φύλαξ) - guard, watchman
 > This was made with Claude Opus 5.5.<br>
 > It's made for personal use only, so don't expect any kind of support.
 
-A brief vulnerability sweep of this server: the host, every running container, angie.<br>
-Scanners find the problems, an LLM says which ones actually matter here and how to fix them.<br>
+A brief vulnerability sweep of a Linux server: the host, every running container, the web servers in front.<br>
+Scanners find the problems, an LLM says which ones actually matter on this machine and how to fix them.<br>
 Python 3.11+, standard library only.<br>
 
 ## How it works
 
+It figures out what the machine runs, nothing to list by hand.<br>
+
 | Step | What | Tool |
 |---|---|---|
-| Host packages | Arch security tracker | `arch-audit` |
-| Pending updates | what `pacman -Syu` would fix | `checkupdates` |
-| AUR packages (angie, ...) | installed vs AUR version | AUR RPC |
-| angie | installed vs latest tag, then CHANGES | GitHub, LLM |
-| Containers | every running image, HIGH/CRITICAL, vulns only | `trivy --image-src podman` |
-| Exposure | public / NetBird / localhost | `~/Containers/AGENTS.md`, `ss` |
-| Triage | what affects us, what to run | `claude -p` with only WebFetch/WebSearch |
+| Distro | Arch, Debian/Ubuntu, Fedora/RHEL, openSUSE, Alpine | `/etc/os-release` |
+| Host packages | known CVEs | `trivy` on the package database, `arch-audit` on Arch |
+| Pending updates | what a normal upgrade would fix | `checkupdates`, `apt`, `dnf`, `zypper`, `apk` |
+| Web servers, sshd | angie, nginx, caddy, traefik, apache, haproxy, OpenSSH vs latest upstream | GitHub tags, advisories via the LLM |
+| AUR packages | installed vs AUR version (Arch) | AUR RPC |
+| Containers | every running image, its ports and compose dir, HIGH/CRITICAL | `trivy`, podman and/or docker |
+| Exposure | listening sockets, published ports, running services | `ss`, `systemctl` |
+| Triage | what affects this machine, what to run | `claude -p` with only WebFetch/WebSearch |
 
-The LLM can't read files or run commands, it only gets the scan JSON and the context file.<br>
+The LLM can't read files or run commands, it only gets the scan data and your context files.<br>
 trivy runs with `--scanners vuln`, so no secrets from images end up in the prompt.<br>
+Only one run at a time, a second one waits (trivy's cache can't be shared).<br>
+
+## Context
+
+phylax can't know your firewall, VPN or which services friends depend on. Tell it in plain Markdown:<br>
+`context_files = ["~/.config/phylax/site.md"]` in the config. It's sent to the provider, so no secrets.<br>
 
 ## Installation
 
-- Scanners
+- Scanners: `trivy`, plus `arch-audit` on Arch
 ```sh
 sudo pacman -S trivy arch-audit
 ```

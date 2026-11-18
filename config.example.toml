@@ -1,4 +1,4 @@
-# phylax settings: ~/.config/phylax/config.toml. Nothing secret goes here.
+# phylax settings: ~/.config/phylax/config.toml. Optional, everything has a default. Nothing secret here.
 # TOML: plain keys first, [tables] last, or the keys end up inside the table above them.
 
 # Which provider triages the scan. Switch with this one line, or per run: phylax -p glm
@@ -8,13 +8,15 @@ provider = "claude"
 severity = ["HIGH", "CRITICAL"]
 per_image_limit = 25
 
-# Host packages whose exact versions the LLM should see (network-facing or privileged)
-key_packages = ["openssh", "openssl", "glibc", "sudo", "podman", "netavark", "aardvark-dns", "passt",
-                "netbird", "libvirt", "qemu-base", "zfs-utils", "fail2ban", "systemd", "curl", "python"]
+# Extra host packages whose versions the LLM should see, on top of the built-in list
+# (openssh, openssl, glibc, sudo, systemd, curl, podman, docker, runc, ...). Missing ones are skipped.
+# key_packages = ["openssh", "openssl", "glibc", "sudo", "systemd", "curl", "podman", "docker"]
 
-# Read into the prompt so the LLM knows what is public, NetBird-only or localhost.
-# Must never contain secrets: this text goes to the provider.
-context_files = ["~/Containers/AGENTS.md"]
+# Text the LLM reads before the data: what is public, what is behind a VPN, how you apply fixes,
+# what must not be restarted. Plain Markdown, write it for a stranger. It is sent to the provider,
+# so never put secrets in it.
+context_files = []
+# context_files = ["~/.config/phylax/site.md"]
 
 # Reports kept in ~/.local/state/phylax
 keep_reports = 30
@@ -30,15 +32,12 @@ tools = ["WebFetch", "WebSearch"]
 # GLM via Z.ai's Anthropic-compatible endpoint, still driven by Claude Code.
 # Save the key with: install -m600 /dev/stdin ~/.config/phylax/glm.token
 # WebSearch is a server-side Anthropic tool that GLM doesn't provide, so only WebFetch here.
-# Delete this whole block once you drop GLM.
 [providers.glm]
 token_file = "~/.config/phylax/glm.token"
 tools = ["WebFetch"]
 env = { ANTHROPIC_BASE_URL = "https://api.z.ai/api/anthropic", API_TIMEOUT_MS = "3000000" }
 # model = "glm-4.6"             # unset = Z.ai's default mapping
 
-# Where the LLM looks for things trivy and arch-audit can't see
+# Extra places to look for advisories. Installed web servers, sshd and CISA KEV are built in.
 [advisory_urls]
-angie = "https://raw.githubusercontent.com/webserver-llc/angie/master/CHANGES"
-nginx = "https://nginx.org/en/security_advisories.html"
-cisa_kev = "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+# myapp = "https://github.com/me/myapp/security/advisories"
