@@ -1,0 +1,44 @@
+# phylax settings: ~/.config/phylax/config.toml. Nothing secret goes here.
+# TOML: plain keys first, [tables] last, or the keys end up inside the table above them.
+
+# Which provider triages the scan. Switch with this one line, or per run: phylax -p glm
+provider = "claude"
+
+# trivy severities to collect, and how many findings per image go into the prompt
+severity = ["HIGH", "CRITICAL"]
+per_image_limit = 25
+
+# Host packages whose exact versions the LLM should see (network-facing or privileged)
+key_packages = ["openssh", "openssl", "glibc", "sudo", "podman", "netavark", "aardvark-dns", "passt",
+                "netbird", "libvirt", "qemu-base", "zfs-utils", "fail2ban", "systemd", "curl", "python"]
+
+# Read into the prompt so the LLM knows what is public, NetBird-only or localhost.
+# Must never contain secrets: this text goes to the provider.
+context_files = ["~/Containers/AGENTS.md"]
+
+# Reports kept in ~/.local/state/phylax
+keep_reports = 30
+
+# Shell command that gets the report on stdin and the title in $PHYLAX_SUBJECT. Empty = off.
+notify = ""
+
+# Claude subscription: uses your normal `claude` login, nothing to configure.
+[providers.claude]
+tools = ["WebFetch", "WebSearch"]
+# model = "claude-sonnet-5-5"   # unset = Claude Code's default
+
+# GLM via Z.ai's Anthropic-compatible endpoint, still driven by Claude Code.
+# Save the key with: install -m600 /dev/stdin ~/.config/phylax/glm.token
+# WebSearch is a server-side Anthropic tool that GLM doesn't provide, so only WebFetch here.
+# Delete this whole block once you drop GLM.
+[providers.glm]
+token_file = "~/.config/phylax/glm.token"
+tools = ["WebFetch"]
+env = { ANTHROPIC_BASE_URL = "https://api.z.ai/api/anthropic", API_TIMEOUT_MS = "3000000" }
+# model = "glm-4.6"             # unset = Z.ai's default mapping
+
+# Where the LLM looks for things trivy and arch-audit can't see
+[advisory_urls]
+angie = "https://raw.githubusercontent.com/webserver-llc/angie/master/CHANGES"
+nginx = "https://nginx.org/en/security_advisories.html"
+cisa_kev = "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
