@@ -23,10 +23,12 @@ It figures out what the machine runs, nothing to list by hand.<br>
 | AUR packages | installed vs AUR version (Arch) | AUR RPC |
 | Containers | every running image, its ports and compose dir, HIGH/CRITICAL | `trivy`, podman and/or docker |
 | Exposure | listening sockets, published ports, running services | `ss`, `systemctl` |
+| Login settings | sshd's password/PAM/root-login switches, host and containers running sshd | config files, `sshd -T` |
 | Triage | what affects this machine, what to run | `claude -p` with only WebFetch/WebSearch |
 
 The LLM can't read files or run commands, it only gets the scan data and your context files.<br>
 trivy runs with `--scanners vuln`, so no secrets from images end up in the prompt.<br>
+From sshd it keeps only a fixed list of yes/no switches like `PasswordAuthentication`, never passwords, hashes or keys.<br>
 Only one run at a time, a second one waits (trivy's cache can't be shared).<br>
 
 ## Context

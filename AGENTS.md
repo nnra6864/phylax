@@ -16,6 +16,7 @@ It was built for the owner's home server (`~/Containers/AGENTS.md`, read its har
 
 - Scanners find, the LLM judges. Don't move detection into the prompt that a deterministic tool can do.
 - Nothing secret may reach the prompt: no `.env`, no `podman inspect` on containers (only `ps --format json` fields: image, names, ports, the compose working_dir label), no `podman compose config`, trivy stays `--scanners vuln`. `podman image inspect` with an explicit `--format` of non-secret fields is fine.
+- sshd: only the keys in `SSHD_KEYS` with values matching `SSHD_VALUE` leave the machine. Never read `/etc/shadow`, host keys or `authorized_keys`, and never pass `podman top` output through; it's only searched for sshd.
 - The triage run gets WebFetch/WebSearch only (`--tools`), never Read/Bash.
 - Providers differ only by env vars passed to Claude Code (`ANTHROPIC_BASE_URL`, token file). `ANTHROPIC_*` from the parent env is stripped first.
 - The owner runs fixes. phylax never pulls, restarts or upgrades anything.

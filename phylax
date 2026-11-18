@@ -66,6 +66,13 @@ SOFTWARE = {
     "haproxy": (["haproxy", "-v"], "haproxy/haproxy", "https://www.haproxy.org/ (news and changelog)"),
     "openssh": (["ssh", "-V"], None, "https://www.openssh.com/security.html"),
 }
+# sshd settings that decide whether login bugs are reachable. Only these keys are ever kept, and their
+# values are yes/no, method names or ports: never a password, hash or key. Everything else is dropped.
+SSHD_KEYS = ("port", "listenaddress", "passwordauthentication", "kbdinteractiveauthentication",
+             "challengeresponseauthentication", "permitemptypasswords", "pubkeyauthentication",
+             "permitrootlogin", "usepam", "authenticationmethods")
+SSHD_VALUE = re.compile(r"[\w.,:\-\[\]* ]{1,80}")  # what a value of those keys looks like, anything else is dropped
+
 GENERIC_ADVISORIES = {"cisa_kev": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"}
 
 
@@ -258,6 +265,58 @@ def listening_sockets():
     return sorted(found)
 
 
+# --- sshd ------------------------------------------------------------------------------------------
+
+def sshd_filter(lines):
+    """Keep only SSHD_KEYS, first value wins (as in sshd). Returns {key: value}."""
+    out = {}
+    for line in lines:
+        key, _, value = line.strip().partition(" ")
+        key, value = key.lower(), value.strip()
+        if key in SSHD_KEYS and key not in out and SSHD_VALUE.fullmatch(value):
+            out[key] = value
+    return out
+
+
+def host_sshd():
+    """Host sshd settings from its config files (sshd -T needs root). Match blocks aren't evaluated."""
+    if not os.path.exists("/etc/ssh/sshd_config"):
+        return None
+    lines = []
+
+    def read(path, depth=0):
+        try:
+            with open(path) as f:
+                for line in f:
+                    s = line.strip()
+                    if s.lower().startswith("match "):
+                        return  # settings below a Match apply only to some connections
+                    if s.lower().startswith("include ") and depth < 4:
+                        for pattern in s.split()[1:]:
+                            pattern = pattern if pattern.startswith("/") else "/etc/ssh/" + pattern
+                            for inc in sorted(glob.glob(pattern)):
+                                read(inc, depth + 1)
+                    else:
+                        lines.append(s.replace("=", " ", 1) if "=" in s.split(" ")[0] else s)
+        except OSError:
+            pass
+
+    read("/etc/ssh/sshd_config")
+    settings = sshd_filter(lines)
+    settings["source"] = "config files; unset keys use OpenSSH defaults, Match blocks not evaluated"
+    return settings
+
+
+def container_sshd(runtime, name):
+    """Effective sshd settings of a container, if sshd runs in it. The process list itself isn't kept."""
+    rc, out, _ = run([runtime, "top", name, "args"], timeout=30)
+    if rc != 0 or not re.search(r"(^|/|\s)sshd(\s|:|$)", out, re.M):
+        return None
+    rc, out, err = run([runtime, "exec", name, "sh", "-c", "$(command -v sshd || echo /usr/sbin/sshd) -T"], timeout=30)
+    # Fails in containers that share the host's process list (pid: host) and so "see" the host's sshd
+    return sshd_filter(out.splitlines()) if rc == 0 else None
+
+
 # --- containers ------------------------------------------------------------------------------------
 
 def container_runtimes():
@@ -376,6 +435,7 @@ def collect(cfg, skip_images):
         "network_software": network_software(),
         "running_services": running_services(),
         "listening_sockets": listening_sockets(),
+        "sshd": host_sshd(),
     }
     if family == "arch":
         _, out, _ = run(["pacman", "-Qm"])
@@ -394,6 +454,11 @@ def collect(cfg, skip_images):
             data["containers"][rt] = {ref: {**i, "scan": "trivy not available"} for ref, i in images.items()}
         else:
             data["containers"][rt] = trivy_images(images, cfg)
+        if isinstance(data["containers"][rt], dict):
+            for ref, info in data["containers"][rt].items():
+                sshd = {c: s for c in info["containers"] if (s := container_sshd(rt, c))}
+                if sshd:
+                    info["sshd"] = sshd
     if not data["containers"]:
         data["containers"] = "no container runtime found"
     return data

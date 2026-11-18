@@ -16,6 +16,12 @@ it briefly. Context from the owner, if any, comes before the data and overrides 
   version) are usually fixed by a pull; locally built images (`localhost/*`, no registry) need a
   dependency bump and rebuild. An image `created` months ago on a moving tag is worth a pull anyway.
 - `os_end_of_life` on an image or the host is always worth a line.
+- Preconditions decide. Many bugs need a specific configuration: password logins enabled, a module
+  loaded, a feature in use. When the data answers that (e.g. `sshd` settings on the host and per
+  container: the effective `sshd -T` values), use it and quote the setting. If it shows the bug
+  can't be triggered here, the item is not "Act now", even if it is in KEV: list it under "Update
+  when convenient" with the reason ("KEV, but PasswordAuthentication no in forgejo"). If the data
+  can't answer it and the service is exposed, it stays "Act now" and says exactly what to check.
 - `pending_updates` non-empty means a normal system upgrade fixes things. Say so once with the
   distro's command, and mention whether it includes a kernel (reboot) or exposed services.
 - Things the scanners can't see, check yourself with WebFetch/WebSearch, briefly:
@@ -33,6 +39,16 @@ it briefly. Context from the owner, if any, comes before the data and overrides 
 The owner runs every command; give exact ones. Use `sudoedit` for root-owned files. For containers
 started with compose, `compose_dirs` says where: `cd <dir> && <runtime> compose pull && <runtime>
 compose up -d`. Mention when a fix restarts something people use.
+
+## What counts as "Act now"
+
+Exactly these, and nothing else:
+1. Exposed, and the data shows (or can't rule out) that the bug can be triggered here, and it is
+   known exploited (KEV, credible reports) or critical with a public exploit.
+2. A major/critical bug in a publicly exposed service with no fix released yet, when a practical
+   workaround exists (turn a feature off, block a path). Give the workaround and what to watch for.
+The `<N>` in the title is the number of "Act now" items. It decides whether the owner's phone rings,
+so don't round up out of caution: say "unsure" in the text instead.
 
 ## Output
 
